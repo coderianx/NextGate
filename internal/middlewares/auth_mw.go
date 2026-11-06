@@ -3,6 +3,7 @@
 package middlewares
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 	"strings"
@@ -17,6 +18,8 @@ const (
 	roleAdmin = "admin"
 	roleUser  = "user"
 )
+
+type claimsContextKey struct{}
 
 // AuthMiddleware validates an HS256 JWT supplied as a Bearer token and
 // authorizes its role. The allowed value must be "all", "admin", or "user";
@@ -64,9 +67,18 @@ func AuthMiddleware(allowed string) func(http.Handler) http.Handler {
 				return
 			}
 
-			next.ServeHTTP(w, r)
+			ctx := context.WithValue(r.Context(), claimsContextKey{}, claims)
+			next.ServeHTTP(w, r.WithContext(ctx))
 		})
 	}
+}
+
+// GetClaims returns the verified JWT claims stored in the request context by
+// [AuthMiddleware]. The boolean is false when the middleware has not populated
+// the context.
+func GetClaims(r *http.Request) (*models.Claims, bool) {
+	claims, ok := r.Context().Value(claimsContextKey{}).(*models.Claims)
+	return claims, ok
 }
 
 // validAllowedRole reports whether role is a supported authorization policy.
