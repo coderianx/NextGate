@@ -298,3 +298,463 @@ func DeleteProvider(
 		"message": "provider_deleted_successfully",
 	})
 }
+
+func AddNewModel(
+	w http.ResponseWriter,
+	r *http.Request,
+) {
+	w.Header().Set("Content-Type", "application/json")
+
+	if store.DB == nil {
+		w.WriteHeader(500)
+
+		json.NewEncoder(w).Encode(map[string]any{
+			"error": "database_not_connected",
+		})
+
+		return
+	}
+
+	providerID, err := strconv.ParseInt(
+		chi.URLParam(r, "id"), 10, 64,
+	)
+
+	if err != nil && providerID == 0 {
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(map[string]any{
+			"error": "invalid_provider_id",
+		})
+		return
+	}
+
+	var providerIsExists bool
+
+	err = store.DB.QueryRow(
+		`
+		SELECT EXISTS(
+		    SELECT 1
+		    FROM providers
+		    WHERE id = ?
+		);
+		`,
+		providerID,
+	).Scan(&providerIsExists)
+
+	if err != nil {
+		w.WriteHeader(500)
+
+		json.NewEncoder(w).Encode(map[string]any{
+			"error": "database_error",
+		})
+
+		return
+	}
+
+	if !providerIsExists {
+		w.WriteHeader(404)
+
+		json.NewEncoder(w).Encode(map[string]any{
+			"error": "provider_not_found",
+		})
+
+		return
+	}
+
+	var req models.AddNewModel
+
+	err = json.NewDecoder(r.Body).Decode(&req)
+
+	if err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+
+		json.NewEncoder(w).Encode(map[string]any{
+			"error": "invalid_request",
+		})
+
+		return
+	}
+
+	if req.ModelID == "" {
+		w.WriteHeader(http.StatusBadRequest)
+
+		json.NewEncoder(w).Encode(map[string]any{
+			"error": "model_id_is_required",
+		})
+
+		return
+	}
+
+	if req.Name == "" {
+		w.WriteHeader(http.StatusBadRequest)
+
+		json.NewEncoder(w).Encode(map[string]any{
+			"error": "name_is_required",
+		})
+
+		return
+	}
+
+	_, err = store.DB.Exec(
+		`
+		INSERT INTO models (provider_id,model_id,name)
+		VALUES (?,?,?)
+		`,
+		providerID,
+		req.ModelID,
+		req.Name,
+	)
+
+	if err != nil {
+		if store.IsUniqueError(err) {
+			w.WriteHeader(409)
+
+			json.NewEncoder(w).Encode(map[string]any{
+				"error": "you_are_already_exists_have_this_model",
+			})
+
+			return
+		}
+
+		w.WriteHeader(500)
+
+		json.NewEncoder(w).Encode(map[string]any{
+			"error": "database_error",
+		})
+
+		return
+	}
+
+	w.WriteHeader(201)
+
+	json.NewEncoder(w).Encode(map[string]any{
+		"message": "new_model_added",
+	})
+}
+
+// ListModels returns all models configured for the provider identified by the
+// {id} URL parameter.
+func ListModels(
+	w http.ResponseWriter,
+	r *http.Request,
+) {
+	w.Header().Set("Content-Type", "application/json")
+
+	if store.DB == nil {
+		w.WriteHeader(http.StatusInternalServerError)
+
+		json.NewEncoder(w).Encode(map[string]any{
+			"error": "database_not_connected",
+		})
+
+		return
+	}
+
+	providerID, err := strconv.ParseInt(
+		chi.URLParam(r, "id"), 10, 64,
+	)
+
+	if err != nil || providerID <= 0 {
+		w.WriteHeader(http.StatusBadRequest)
+
+		json.NewEncoder(w).Encode(map[string]any{
+			"error": "invalid_provider_id",
+		})
+
+		return
+	}
+
+	var providerExists bool
+
+	err = store.DB.QueryRow(
+		`
+		SELECT EXISTS(
+			SELECT 1
+			FROM providers
+			WHERE id = ?
+		)
+		`,
+		providerID,
+	).Scan(&providerExists)
+
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+
+		json.NewEncoder(w).Encode(map[string]any{
+			"error": "database_error",
+		})
+
+		return
+	}
+
+	if !providerExists {
+		w.WriteHeader(http.StatusNotFound)
+
+		json.NewEncoder(w).Encode(map[string]any{
+			"error": "provider_not_found",
+		})
+
+		return
+	}
+
+	rows, err := store.DB.Query(
+		`
+		SELECT provider_id, model_id, name, enabled
+		FROM models
+		WHERE provider_id = ?
+		ORDER BY id
+		`,
+		providerID,
+	)
+
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+
+		json.NewEncoder(w).Encode(map[string]any{
+			"error": "database_query_error",
+		})
+
+		return
+	}
+
+	defer rows.Close()
+
+	providerModels := make([]models.Models, 0)
+
+	for rows.Next() {
+		var providerModel models.Models
+
+		err := rows.Scan(
+			&providerModel.ProviderID,
+			&providerModel.ModelID,
+			&providerModel.Name,
+			&providerModel.Enabled,
+		)
+
+		if err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+
+			json.NewEncoder(w).Encode(map[string]any{
+				"error": "scan_models_error",
+			})
+
+			return
+		}
+
+		providerModels = append(providerModels, providerModel)
+	}
+
+	if err := rows.Err(); err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+
+		json.NewEncoder(w).Encode(map[string]any{
+			"error": "scan_models_error",
+		})
+
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+
+	json.NewEncoder(w).Encode(map[string]any{
+		"models": providerModels,
+	})
+}
+
+// SetModelEnabled updates whether the model identified by the {model_id} URL
+// parameter is enabled for the provider identified by the {id} URL parameter.
+func SetModelEnabled(
+	w http.ResponseWriter,
+	r *http.Request,
+) {
+	w.Header().Set("Content-Type", "application/json")
+
+	if store.DB == nil {
+		w.WriteHeader(http.StatusInternalServerError)
+
+		json.NewEncoder(w).Encode(map[string]any{
+			"error": "database_not_connected",
+		})
+
+		return
+	}
+
+	providerID, err := strconv.ParseInt(
+		chi.URLParam(r, "id"), 10, 64,
+	)
+
+	if err != nil || providerID <= 0 {
+		w.WriteHeader(http.StatusBadRequest)
+
+		json.NewEncoder(w).Encode(map[string]any{
+			"error": "invalid_provider_id",
+		})
+
+		return
+	}
+
+	modelID := chi.URLParam(r, "model_id")
+
+	if modelID == "" {
+		w.WriteHeader(http.StatusBadRequest)
+
+		json.NewEncoder(w).Encode(map[string]any{
+			"error": "model_id_is_required",
+		})
+
+		return
+	}
+
+	var req models.SetModelEnabled
+
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+
+		json.NewEncoder(w).Encode(map[string]any{
+			"error": "invalid_request",
+		})
+
+		return
+	}
+
+	result, err := store.DB.Exec(
+		`
+		UPDATE models
+		SET enabled = ?
+		WHERE provider_id = ? AND model_id = ?
+		`,
+		req.Enabled,
+		providerID,
+		modelID,
+	)
+
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+
+		json.NewEncoder(w).Encode(map[string]any{
+			"error": "database_update_error",
+		})
+
+		return
+	}
+
+	updatedRows, err := result.RowsAffected()
+
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+
+		json.NewEncoder(w).Encode(map[string]any{
+			"error": "database_update_error",
+		})
+
+		return
+	}
+
+	if updatedRows == 0 {
+		w.WriteHeader(http.StatusNotFound)
+
+		json.NewEncoder(w).Encode(map[string]any{
+			"error": "model_not_found",
+		})
+
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+
+	json.NewEncoder(w).Encode(map[string]any{
+		"message": "model_enabled_updated",
+		"enabled": req.Enabled,
+	})
+}
+
+// DeleteModel deletes the model identified by the {model_id} URL parameter
+// from the provider identified by the {id} URL parameter.
+func DeleteModel(
+	w http.ResponseWriter,
+	r *http.Request,
+) {
+	w.Header().Set("Content-Type", "application/json")
+
+	if store.DB == nil {
+		w.WriteHeader(http.StatusInternalServerError)
+
+		json.NewEncoder(w).Encode(map[string]any{
+			"error": "database_not_connected",
+		})
+
+		return
+	}
+
+	providerID, err := strconv.ParseInt(
+		chi.URLParam(r, "id"), 10, 64,
+	)
+
+	if err != nil || providerID <= 0 {
+		w.WriteHeader(http.StatusBadRequest)
+
+		json.NewEncoder(w).Encode(map[string]any{
+			"error": "invalid_provider_id",
+		})
+
+		return
+	}
+
+	modelID := chi.URLParam(r, "model_id")
+
+	if modelID == "" {
+		w.WriteHeader(http.StatusBadRequest)
+
+		json.NewEncoder(w).Encode(map[string]any{
+			"error": "model_id_is_required",
+		})
+
+		return
+	}
+
+	result, err := store.DB.Exec(
+		`
+		DELETE FROM models
+		WHERE provider_id = ? AND model_id = ?
+		`,
+		providerID,
+		modelID,
+	)
+
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+
+		json.NewEncoder(w).Encode(map[string]any{
+			"error": "database_delete_error",
+		})
+
+		return
+	}
+
+	deletedRows, err := result.RowsAffected()
+
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+
+		json.NewEncoder(w).Encode(map[string]any{
+			"error": "database_delete_error",
+		})
+
+		return
+	}
+
+	if deletedRows == 0 {
+		w.WriteHeader(http.StatusNotFound)
+
+		json.NewEncoder(w).Encode(map[string]any{
+			"error": "model_not_found",
+		})
+
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+
+	json.NewEncoder(w).Encode(map[string]any{
+		"message": "model_deleted_successfully",
+	})
+}

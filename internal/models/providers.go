@@ -29,3 +29,21 @@ type Providers struct {
 	// CreatedAt is the time at which the provider was stored.
 	CreatedAt time.Time `json:"created_at"`
 }
+
+type AddNewModel struct {
+	ModelID string `json:"model_id"`
+	Name    string `json:"name"`
+}
+
+type Models struct {
+	ProviderID int64  `json:"provider_id"`
+	ModelID    string `json:"model_id"`
+	Name       string `json:"name"`
+	Enabled    bool   `json:"enabled"`
+}
+
+// SetModelEnabled is the JSON body accepted when changing a model's enabled
+// state.
+type SetModelEnabled struct {
+	Enabled bool `json:"enabled"`
+}

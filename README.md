@@ -125,6 +125,10 @@ Refresh tokens expire after 30 days and are rotated on every successful refresh.
 | `POST` | `/api/v1/login` | None | Log in as administrator |
 | `POST` | `/api/v1/providers` | Admin JWT | Add a provider |
 | `GET` | `/api/v1/providers` | Admin JWT | List configured providers |
+| `POST` | `/api/v1/providers/{id}/models` | Admin JWT | Add a model to a provider |
+| `GET` | `/api/v1/providers/{id}/models` | Admin JWT | List models for a provider |
+| `PATCH` | `/api/v1/providers/{id}/models/{model_id}` | Admin JWT | Enable or disable a provider model |
+| `DELETE` | `/api/v1/providers/{id}/models/{model_id}` | Admin JWT | Delete a provider model |
 | `DELETE` | `/api/v1/providers/{id}` | Admin JWT | Delete a provider |
 
 Provider names are passed through as supplied. The name `groq` always uses
