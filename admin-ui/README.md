@@ -1,8 +1,11 @@
 # NextGate Admin UI
 
-The NextGate administrator interface is a React and Vite application. The
-current screen handles administrator login against the admin API at
-`/api/v1/login`.
+The NextGate administrator interface is a React and Vite application. It handles
+administrator login against `/api/v1/login`, stores the returned JWT in session
+storage, and redirects to `/dashboard`. The dashboard uses that JWT to load the
+configured providers from `/api/v1/providers`. It also manages the complete
+admin provider workflow: adding and deleting providers, loading a provider's
+models, adding and deleting models, and enabling or disabling them.
 
 The production build in `dist/` is embedded into the Go binary by `embed.go`
 and served at the root of the admin server.

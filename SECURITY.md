@@ -79,10 +79,11 @@ service. Restrict the admin port to localhost and trusted local processes.
 
 ### Administrator access
 
-The current `--admin-password` implementation requires root. The resulting
-keyring entry is scoped to the account context in which the process runs. Do not
-share that context, and do not expose the admin server through a reverse proxy
-or public interface. Restrict access to the host and administrator account.
+Run `--admin-password` as the same non-root account that runs NextGate. Do not
+use `sudo`: the administrator password hash is stored in the current user's OS
+keyring, and a root process cannot access that user's keyring. Do not share the
+account context, and do not expose the admin server through a reverse proxy or
+public interface. Restrict access to the host and administrator account.
 
 ## Known Limitations
 

@@ -1,19 +1,50 @@
 package admin
 
 import (
+	"errors"
+	"io/fs"
 	"net/http"
+	"path"
 	"strings"
 
 	adminui "github.com/coderianx/NextGate/admin-ui"
 )
 
 func newAdminUIHandler() http.Handler {
-	fileServer := http.FileServer(http.FS(adminui.Dist()))
+	dist := adminui.Dist()
+	fileServer := http.FileServer(http.FS(dist))
 
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		setAdminUIHeaders(w, r)
+
+		if shouldServeSPAIndex(dist, r) {
+			request := r.Clone(r.Context())
+			request.URL.Path = "/"
+			request.URL.RawPath = ""
+			fileServer.ServeHTTP(w, request)
+			return
+		}
+
 		fileServer.ServeHTTP(w, r)
 	})
+}
+
+func shouldServeSPAIndex(dist fs.FS, r *http.Request) bool {
+	if r.Method != http.MethodGet && r.Method != http.MethodHead {
+		return false
+	}
+
+	requestPath := strings.TrimPrefix(path.Clean(r.URL.Path), "/")
+
+	if requestPath == "" || requestPath == "." ||
+		strings.HasPrefix(requestPath, "assets/") ||
+		path.Ext(requestPath) != "" {
+		return false
+	}
+
+	_, err := fs.Stat(dist, requestPath)
+
+	return errors.Is(err, fs.ErrNotExist)
 }
 
 func setAdminUIHeaders(w http.ResponseWriter, r *http.Request) {

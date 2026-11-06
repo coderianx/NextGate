@@ -63,7 +63,7 @@ func AdminLoginHandler(
 	adminPasswordKeyring, err := password.GetAdminPassword()
 
 	if err != nil {
-		log.Printf("[ADMIN] Keyring Admin Password: %w\n", err)
+		log.Printf("[ADMIN] Keyring Admin Password: %v\n", err)
 
 		w.WriteHeader(500)
 
@@ -118,7 +118,7 @@ func AdminLoginHandler(
 
 	if err != nil {
 
-		log.Printf("[ADMIN] JWT error: %w\n", err)
+		log.Printf("[ADMIN] JWT error: %v\n", err)
 
 		w.WriteHeader(500)
 

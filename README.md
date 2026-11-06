@@ -12,7 +12,7 @@ administrator API for configuring providers.
 ## Features
 
 - Separate public and administrator HTTP servers.
-- Embedded administrator login console served by the admin server.
+- Embedded administrator login and provider dashboard served by the admin server.
 - User registration and login with bcrypt password hashing.
 - Short-lived HS256 JWT access tokens and rotating refresh tokens.
 - API keys issued to users and stored only as SHA-256 hashes.
@@ -55,20 +55,20 @@ cd NextGate
 go build -o nextgate .
 
 export JWT_SECRET="$(openssl rand -base64 48)"
-sudo -E ./nextgate --admin-password
+./nextgate --admin-password
 ```
 
 `--admin-password` prompts for a new administrator password and stores a bcrypt
 hash in the OS keyring. With `JWT_SECRET` available, it then starts both servers.
-The flag currently requires root. The keyring entry belongs to the account
-context in which the process runs, so later runs must use the same
-account/keyring context.
+Run the command as the same non-root account that will run NextGate. Do not use
+`sudo`; a root process cannot access the user's OS keyring. Later runs must use
+the same account and keyring context.
 
 Subsequent runs use the same environment and keyring context:
 
 ```sh
 export JWT_SECRET="$(cat /path/to/jwt-secret)"
-sudo -E ./nextgate
+./nextgate
 ```
 
 The current startup path reads `JWT_SECRET` from the process environment. It
@@ -89,7 +89,7 @@ Changing ports:
 | `JWT_SECRET` | Yes | — | Secret used to sign and verify HS256 access tokens |
 | `--api-port` | No | `8080` | Public API port; the server binds to `0.0.0.0` |
 | `--admin-port` | No | `9090` | Admin API port; the server binds to `127.0.0.1` |
-| `--admin-password` | No | `false` | Set the administrator password; requires root |
+| `--admin-password` | No | `false` | Set the administrator password; run without sudo |
 
 The SQLite database is currently created as `nextgate.db` in the process
 working directory.

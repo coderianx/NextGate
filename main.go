@@ -23,20 +23,29 @@ func main() {
 
 	adminServerPort := flag.Int("admin-port", 9090, "Admin server port for start admin server")
 	apiServerPort := flag.Int("api-port", 8080, "API server port for start api server")
-	setAdminPassword := flag.Bool("admin-password", false, "Set admin password (sudo required)")
+	setAdminPassword := flag.Bool("admin-password", false, "Set admin password (run without sudo)")
 
 	flag.Parse()
 
+	err := config.Init()
+
+	if err != nil {
+		log.Fatal(err)
+	}
+
 	if *setAdminPassword {
-		if os.Geteuid() != 0 {
-			fmt.Println("sudo is required please use with sudo")
-			os.Exit(1)
+		if os.Geteuid() == 0 {
+			log.Fatal("admin: run --admin-password without sudo; the password is stored in the current user's OS keyring")
 		}
 
 		var adminPassword string
 
 		fmt.Print("Enter New Admin Password: ")
 		fmt.Scan(&adminPassword)
+
+		if adminPassword == "" {
+			log.Fatal("admin: password cannot be empty")
+		}
 
 		err := password.SetAdminPassword(adminPassword)
 
