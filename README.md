@@ -12,6 +12,7 @@ administrator API for configuring providers.
 ## Features
 
 - Separate public and administrator HTTP servers.
+- Embedded administrator login console served by the admin server.
 - User registration and login with bcrypt password hashing.
 - Short-lived HS256 JWT access tokens and rotating refresh tokens.
 - API keys issued to users and stored only as SHA-256 hashes.
@@ -26,7 +27,7 @@ administrator API for configuring providers.
 | Component | Default address | Purpose |
 | --- | --- | --- |
 | Public API | `0.0.0.0:8080` | User authentication and API-key management |
-| Admin API | `127.0.0.1:9090` | Administrator login and provider management |
+| Admin API and console | `127.0.0.1:9090` | Administrator login, provider management, and embedded UI |
 | SQLite | `./nextgate.db` | Users, refresh tokens, providers, and API keys |
 
 The public API binds to all interfaces by default and serves plain HTTP. Put it
@@ -202,6 +203,23 @@ go fmt ./...
 
 There are currently no test files in the repository. The commands above are the
 expected baseline checks for new contributions.
+
+### Admin UI
+
+The React/Vite source lives in `admin-ui/`. Its production build is committed in
+`admin-ui/dist/`, embedded into the Go binary, and served at
+`http://127.0.0.1:9090/`.
+
+```sh
+cd admin-ui
+npm install
+npm run lint
+npm run build
+```
+
+During local UI development, `npm run dev` proxies `/api` requests to the admin
+server at `http://127.0.0.1:9090`. Rebuild `dist/` after making UI changes so a
+plain `go build ./...` includes the latest assets.
 
 ## Project Layout
 

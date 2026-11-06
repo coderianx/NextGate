@@ -1,0 +1,6 @@
+# Keep the embedded admin UI out of GitHub's language statistics.
+**/*.html linguist-detectable=false
+**/*.css linguist-detectable=false
+
+# Collapse generated web build output in GitHub diffs and exclude it from stats.
+admin-ui/dist/** linguist-generated=true linguist-vendored=true linguist-detectable=false

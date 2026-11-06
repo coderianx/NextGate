@@ -60,5 +60,7 @@ func NewRouter() *chi.Mux {
 		)
 	})
 
+	router.Handle("/*", newAdminUIHandler())
+
 	return router
 }
