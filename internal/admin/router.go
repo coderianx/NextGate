@@ -1,3 +1,5 @@
+// Package admin configures the authenticated HTTP API used to manage the
+// NextGate installation.
 package admin
 
 import (
@@ -7,6 +9,8 @@ import (
 	"github.com/go-chi/chi/v5"
 )
 
+// NewRouter returns the admin HTTP router with login and provider management
+// endpoints mounted under /api/v1.
 func NewRouter() *chi.Mux {
 	router := chi.NewRouter()
 

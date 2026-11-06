@@ -1,3 +1,5 @@
+// Package password manages the bcrypt-hashed administrator password stored in
+// the system keyring.
 package password
 
 import (
@@ -13,6 +15,8 @@ var (
 	adminPasswordService string = "admin-password"
 )
 
+// OldPasswordNotCorrect is returned by [SetAdminPassword] when the supplied
+// current password does not match the stored hash.
 var OldPasswordNotCorrect = errors.New("admin: old password is not correct")
 
 // CheckAdminPassword reports whether an admin password is stored in the system
@@ -44,6 +48,10 @@ func GetAdminPassword() (string, error) {
 	return adminPassword, nil
 }
 
+// SetAdminPassword stores a bcrypt hash of newAdminPassword in the system
+// keyring. When a password already exists, it first prompts for the current
+// password and returns [OldPasswordNotCorrect] if the value does not match.
+// Passwords longer than 72 bytes are rejected.
 func SetAdminPassword(newAdminPassword string) error {
 
 	if len([]byte(newAdminPassword)) > 72 {

@@ -1,3 +1,5 @@
+// Command nextgate runs the NextGate public API and local administrator HTTP
+// servers.
 package main
 
 import (
@@ -12,6 +14,7 @@ import (
 
 	"github.com/coderianx/NextGate/internal/admin"
 	"github.com/coderianx/NextGate/internal/admin/password"
+	"github.com/coderianx/NextGate/internal/api"
 	"github.com/coderianx/NextGate/internal/config"
 	"github.com/coderianx/NextGate/internal/store"
 )
@@ -19,6 +22,7 @@ import (
 func main() {
 
 	adminServerPort := flag.Int("admin-port", 9090, "Admin server port for start admin server")
+	apiServerPort := flag.Int("api-port", 8080, "API server port for start api server")
 	setAdminPassword := flag.Bool("admin-password", false, "Set admin password (sudo required)")
 
 	flag.Parse()
@@ -92,6 +96,25 @@ func main() {
 		WriteTimeout: 10 * time.Second,
 		IdleTimeout:  60 * time.Second,
 	}
+
+	apiServer := &http.Server{
+		Addr: fmt.Sprintf("0.0.0.0:%d", *apiServerPort),
+
+		Handler: api.NewRouter(),
+
+		ReadTimeout:  10 * time.Second,
+		WriteTimeout: 10 * time.Second,
+		IdleTimeout:  60 * time.Second,
+	}
+
+	log.Printf("API server running on 0.0.0.0:%d", *apiServerPort)
+
+	go func() {
+		if err := apiServer.ListenAndServe(); err != nil &&
+			!errors.Is(err, http.ErrServerClosed) {
+			log.Fatal(err)
+		}
+	}()
 
 	log.Printf("Admin server running on 127.0.0.1:%d", *adminServerPort)
 

@@ -1,3 +1,5 @@
+// Package config loads NextGate environment settings and manages the
+// keyring-backed AES-256 key used for secret encryption.
 package config
 
 import (
@@ -74,6 +76,9 @@ func CreateAESKey() error {
 	return nil
 }
 
+// Init creates the per-user NextGate directory and environment file when they
+// are missing, then loads the environment file without overriding existing
+// process variables.
 func Init() error {
 	home, err := os.UserHomeDir()
 	if err != nil {
@@ -116,6 +121,8 @@ func Init() error {
 	return nil
 }
 
+// GetNextGatePath returns the per-user NextGate directory configured by [Init].
+// It returns an empty string before Init has completed successfully.
 func GetNextGatePath() string {
 	return nextgatePath
 }

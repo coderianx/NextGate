@@ -1,4 +1,4 @@
-// Package store owns Sekura's SQLite connection lifecycle and schema. It
+// Package store owns NextGate's SQLite connection lifecycle and schema. It
 // configures connections for concurrency, integrity, and secure deletion, and
 // exposes the active handle through [DB].
 package store
@@ -10,7 +10,8 @@ import (
 	"os"
 	"strings"
 
-	_ "modernc.org/sqlite"
+	"modernc.org/sqlite"
+	sqlite3 "modernc.org/sqlite/lib"
 )
 
 // DB is the process-wide SQLite handle installed by [ConnectDB] and cleared by
@@ -19,6 +20,18 @@ import (
 // The handle is safe for concurrent database operations, but callers must
 // synchronize calls to [ConnectDB] and [CloseDB] with other access to DB.
 var DB *sql.DB
+
+// IsUniqueError reports whether err is caused by a UNIQUE constraint
+// violation.
+func IsUniqueError(err error) bool {
+	var sqliteErr *sqlite.Error
+
+	if !errors.As(err, &sqliteErr) {
+		return false
+	}
+
+	return sqliteErr.Code() == sqlite3.SQLITE_CONSTRAINT_UNIQUE
+}
 
 // ConnectDB opens an SQLite database at dbPath, applies Sekura's connection
 // pragmas, verifies that the database responds, and installs the handle as
@@ -95,8 +108,8 @@ func CloseDB() error {
 	return nil
 }
 
-// CreateTables creates the accounts table and its schema when they do not
-// already exist. Existing tables and rows are left unchanged.
+// CreateTables creates the users, refresh_tokens, and providers tables when
+// they do not already exist. Existing tables and rows are left unchanged.
 //
 // It returns an error when [DB] is nil or the schema cannot be applied.
 func CreateTables() error {
@@ -105,11 +118,20 @@ func CreateTables() error {
 	}
 
 	const schema = `
-CREATE TABLE IF NOT EXISTS accounts (
+CREATE TABLE IF NOT EXISTS users (
 	id INTEGER PRIMARY KEY AUTOINCREMENT,
-	issuer TEXT NOT NULL,
-	account_name TEXT NOT NULL,
-	encrypted_secret TEXT NOT NULL,
+	username TEXT NOT NULL UNIQUE,
+	password TEXT NOT NULL,
+	created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+
+
+CREATE TABLE IF NOT EXISTS refresh_tokens (
+	id INTEGER PRIMARY KEY AUTOINCREMENT,
+	user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+	token TEXT NOT NULL,
+	expires_at DATETIME NOT NULL,
 	created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -120,6 +142,7 @@ CREATE TABLE IF NOT EXISTS providers (
 	api_key TEXT NOT NULL,
 	created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
+
 `
 
 	if _, err := DB.Exec(schema); err != nil {

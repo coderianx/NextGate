@@ -1,3 +1,5 @@
+// Package auth provides HTTP handlers for authenticating administrator
+// sessions.
 package auth
 
 import (
@@ -14,6 +16,10 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
+// AdminLoginHandler authenticates an administrator against the bcrypt hash
+// stored in the system keyring and returns a signed JWT. It responds with 400
+// for malformed requests, 409 for invalid credentials, and 500 when the
+// database, keyring, or token signing is unavailable.
 func AdminLoginHandler(
 	w http.ResponseWriter,
 	r *http.Request,

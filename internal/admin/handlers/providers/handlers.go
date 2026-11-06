@@ -1,3 +1,5 @@
+// Package providers provides authenticated HTTP handlers for managing AI
+// providers.
 package providers
 
 import (
@@ -14,9 +16,15 @@ import (
 )
 
 var (
+	// GroqBaseURL is the default base URL used when adding a provider named
+	// "groq".
 	GroqBaseURL string = "https://api.groq.com/openai/v1"
 )
 
+// AddNewProvider validates a provider request, encrypts its API key with the
+// keyring-backed AES-256 key, and stores the provider in the database. It
+// responds with 201 on success and reports validation or persistence failures
+// as JSON errors.
 func AddNewProvider(
 	w http.ResponseWriter,
 	r *http.Request,
@@ -137,6 +145,8 @@ func AddNewProvider(
 	})
 }
 
+// ListMyProviders returns all configured providers without exposing their
+// encrypted API keys.
 func ListMyProviders(
 	w http.ResponseWriter,
 	r *http.Request,
@@ -214,6 +224,8 @@ func ListMyProviders(
 	})
 }
 
+// DeleteProvider deletes the provider identified by the {id} URL parameter. It
+// returns 400 for an invalid id and 404 when no matching provider exists.
 func DeleteProvider(
 	w http.ResponseWriter,
 	r *http.Request,

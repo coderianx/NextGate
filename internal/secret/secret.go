@@ -64,6 +64,7 @@ func Decrypt(key []byte, ciphertext string) (string, error) {
 	return string(plaintext), nil
 }
 
+// newGCM returns an AES-GCM AEAD for a 32-byte AES-256 key.
 func newGCM(key []byte) (cipher.AEAD, error) {
 	if len(key) != aes256KeySize {
 		return nil, ErrInvalidKey

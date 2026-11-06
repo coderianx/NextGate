@@ -1,4 +1,5 @@
-// Package middlewares provides HTTP middleware for authentication and authorization.
+// Package middlewares provides HTTP middleware for authentication and
+// authorization.
 package middlewares
 
 import (
@@ -68,6 +69,7 @@ func AuthMiddleware(allowed string) func(http.Handler) http.Handler {
 	}
 }
 
+// validAllowedRole reports whether role is a supported authorization policy.
 func validAllowedRole(role string) bool {
 	switch role {
 	case roleAll, roleAdmin, roleUser:
@@ -77,6 +79,8 @@ func validAllowedRole(role string) bool {
 	}
 }
 
+// roleAllowed reports whether an authenticated role satisfies the requested
+// policy. The "all" policy permits both administrator and user roles.
 func roleAllowed(allowed, role string) bool {
 	if role != roleAdmin && role != roleUser {
 		return false
@@ -85,6 +89,7 @@ func roleAllowed(allowed, role string) bool {
 	return allowed == roleAll || allowed == role
 }
 
+// writeAuthError writes a JSON error response with the supplied status code.
 func writeAuthError(w http.ResponseWriter, status int, message string) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
