@@ -1,6 +1,8 @@
 package config
 
 import (
+	"crypto/rand"
+	"encoding/base64"
 	"errors"
 	"fmt"
 	"os"
@@ -8,11 +10,69 @@ import (
 	"strings"
 
 	"github.com/joho/godotenv"
+	"github.com/zalando/go-keyring"
 )
 
 var nextgatePath string
 
 var requiredEnvNames = []string{"JWT_SECRET"}
+
+const (
+	keyringService = "nextgate"
+	aesKeyName     = "aes-256-key"
+	aes256KeySize  = 32
+)
+
+// ErrAESKeyNotFound is returned when no AES-256 key is stored in the system
+// keyring.
+var ErrAESKeyNotFound = errors.New("config: AES-256 key not found")
+
+// GetAESKey returns the AES-256 key stored in the system keyring.
+func GetAESKey() ([]byte, error) {
+	storedKey, err := keyring.Get(keyringService, aesKeyName)
+	if errors.Is(err, keyring.ErrNotFound) {
+		return nil, ErrAESKeyNotFound
+	}
+
+	if err != nil {
+		return nil, fmt.Errorf("config: keyring get error: %w", err)
+	}
+
+	key, err := base64.StdEncoding.DecodeString(storedKey)
+	if err != nil {
+		return nil, fmt.Errorf("config: decode AES key: %w", err)
+	}
+
+	if len(key) != aes256KeySize {
+		return nil, fmt.Errorf("config: invalid AES-256 key length: %d", len(key))
+	}
+
+	return key, nil
+}
+
+// CreateAESKey generates and stores a new random AES-256 key. If a key already
+// exists in the system keyring, it leaves it unchanged and returns nil.
+func CreateAESKey() error {
+	_, err := keyring.Get(keyringService, aesKeyName)
+	if err == nil {
+		return nil
+	}
+
+	if !errors.Is(err, keyring.ErrNotFound) {
+		return fmt.Errorf("config: keyring get error: %w", err)
+	}
+
+	key := make([]byte, aes256KeySize)
+	if _, err := rand.Read(key); err != nil {
+		return fmt.Errorf("config: generate AES-256 key: %w", err)
+	}
+
+	if err := keyring.Set(keyringService, aesKeyName, base64.StdEncoding.EncodeToString(key)); err != nil {
+		return fmt.Errorf("config: keyring set error: %w", err)
+	}
+
+	return nil
+}
 
 func Init() error {
 	home, err := os.UserHomeDir()

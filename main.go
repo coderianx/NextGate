@@ -59,6 +59,12 @@ func main() {
 		log.Fatal(err)
 	}
 
+	err = config.CreateAESKey()
+
+	if err != nil {
+		log.Fatal(err)
+	}
+
 	err = store.ConnectDB(
 		filepath.Join(
 			config.GetNextGatePath(),

@@ -112,6 +112,14 @@ CREATE TABLE IF NOT EXISTS accounts (
 	encrypted_secret TEXT NOT NULL,
 	created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
+
+CREATE TABLE IF NOT EXISTS providers (
+	id INTEGER PRIMARY KEY AUTOINCREMENT,
+	name TEXT NOT NULL,
+	base_url TEXT NOT NULL UNIQUE,
+	api_key TEXT NOT NULL,
+	created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
 `
 
 	if _, err := DB.Exec(schema); err != nil {
