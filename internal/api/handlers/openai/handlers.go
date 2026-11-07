@@ -1,12 +1,14 @@
 package openai
 
 import (
+	"context"
 	"database/sql"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"log"
 	"net/http"
+	"time"
 
 	"github.com/coderianx/NextGate/internal/ai"
 	"github.com/coderianx/NextGate/internal/config"
@@ -50,21 +52,6 @@ func ChatCompletion(
 
 		json.NewEncoder(w).Encode(map[string]any{
 			"error": "invalid_request",
-		})
-
-		return
-	}
-
-	if req.Stream {
-		w.WriteHeader(http.StatusBadRequest)
-
-		json.NewEncoder(w).Encode(map[string]any{
-			"error": map[string]any{
-				"message": "Streaming is not supported",
-				"type":    "invalid_request_error",
-				"param":   "stream",
-				"code":    "unsupported_value",
-			},
 		})
 
 		return
@@ -300,6 +287,11 @@ func ChatCompletion(
 		return
 	}
 
+	if req.Stream {
+		streamChatCompletion(w, r, providerAPIKey, req, baseURL)
+		return
+	}
+
 	resp, err := ai.Chat(
 		r.Context(),
 		providerAPIKey,
@@ -328,4 +320,79 @@ func ChatCompletion(
 	if err := json.NewEncoder(w).Encode(resp); err != nil {
 		log.Printf("encode chat completion response: %v", err)
 	}
+}
+
+// streamChatCompletion writes an OpenAI-compatible server-sent event stream.
+// The server write deadline is cleared for the response so long-lived streams
+// are not cut off by the API server's default timeout.
+func streamChatCompletion(
+	w http.ResponseWriter,
+	r *http.Request,
+	apiKey string,
+	req models.ChatCompletionRequest,
+	baseURL string,
+) {
+	controller := http.NewResponseController(w)
+
+	if err := controller.SetWriteDeadline(time.Time{}); err != nil &&
+		!errors.Is(err, http.ErrNotSupported) {
+		log.Printf("disable write deadline for stream: %v", err)
+	}
+
+	w.Header().Set("Content-Type", "text/event-stream")
+	w.Header().Set("Cache-Control", "no-cache")
+	w.Header().Set("Connection", "keep-alive")
+	w.Header().Set("X-Accel-Buffering", "no")
+	w.WriteHeader(http.StatusOK)
+
+	if err := controller.Flush(); err != nil {
+		log.Printf("flush stream headers: %v", err)
+		return
+	}
+
+	err := ai.ChatStream(
+		r.Context(),
+		apiKey,
+		req,
+		baseURL,
+		func(chunk models.ChatCompletionChunk) error {
+			payload, err := json.Marshal(chunk)
+			if err != nil {
+				return err
+			}
+
+			if _, err := fmt.Fprintf(w, "data: %s\n\n", payload); err != nil {
+				return err
+			}
+
+			return controller.Flush()
+		},
+	)
+	if err != nil {
+		if r.Context().Err() != nil ||
+			errors.Is(err, context.Canceled) ||
+			errors.Is(err, context.DeadlineExceeded) {
+			return
+		}
+
+		log.Printf("chat completion stream failed: %v", err)
+
+		payload, marshalErr := json.Marshal(map[string]any{
+			"error": map[string]any{
+				"message": "The upstream provider request failed.",
+				"type":    "server_error",
+				"param":   nil,
+				"code":    "upstream_error",
+			},
+		})
+		if marshalErr == nil {
+			_, _ = fmt.Fprintf(w, "data: %s\n\n", payload)
+			_ = controller.Flush()
+		}
+
+		return
+	}
+
+	_, _ = fmt.Fprint(w, "data: [DONE]\n\n")
+	_ = controller.Flush()
 }

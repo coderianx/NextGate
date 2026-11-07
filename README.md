@@ -16,7 +16,8 @@ administrator API for configuring providers.
 - User registration and login with bcrypt password hashing.
 - Short-lived HS256 JWT access tokens and rotating refresh tokens.
 - API keys issued to users and stored only as SHA-256 hashes.
-- OpenAI-compatible chat completions proxied through issued API keys.
+- OpenAI-compatible chat completions, including SSE streaming, proxied through
+  issued API keys.
 - Administrator-managed AI providers with built-in defaults for Groq.
 - Provider API keys encrypted at rest with AES-256-GCM.
 - OS-keyring-backed encryption and administrator password storage.
@@ -120,6 +121,8 @@ All request and response bodies use JSON. Authenticated endpoints expect an
 
 Passwords must not exceed 72 bytes. Access tokens expire after 60 minutes.
 Refresh tokens expire after 30 days and are rotated on every successful refresh.
+Set `stream: true` on a chat completion request to receive OpenAI-compatible
+server-sent events (`text/event-stream`), terminated by `data: [DONE]`.
 
 ### Admin API
 
