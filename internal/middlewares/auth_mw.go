@@ -73,9 +73,9 @@ func AuthMiddleware(allowed string) func(http.Handler) http.Handler {
 	}
 }
 
-// GetClaims returns the verified JWT claims stored in the request context by
-// [AuthMiddleware]. The boolean is false when the middleware has not populated
-// the context.
+// GetClaims returns the verified claims stored in the request context by
+// [AuthMiddleware] or [APIKeyMiddleware]. The boolean is false when neither
+// middleware has populated the context.
 func GetClaims(r *http.Request) (*models.Claims, bool) {
 	claims, ok := r.Context().Value(claimsContextKey{}).(*models.Claims)
 	return claims, ok

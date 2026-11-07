@@ -4,6 +4,7 @@ package api
 import (
 	"github.com/coderianx/NextGate/internal/api/handlers/apikeys"
 	"github.com/coderianx/NextGate/internal/api/handlers/auth"
+	"github.com/coderianx/NextGate/internal/api/handlers/openai"
 	"github.com/coderianx/NextGate/internal/middlewares"
 	"github.com/go-chi/chi/v5"
 )
@@ -35,5 +36,12 @@ func NewRouter() *chi.Mux {
 		).Delete("/apikeys/{id}", apikeys.DeleteAPIKey)
 	})
 
+	router.Route("/openai/v1", func(r chi.Router) {
+		r.With(
+			middlewares.APIKeyMiddleware,
+		).Post(
+			"/chat/completions", openai.ChatCompletion,
+		)
+	})
 	return router
 }

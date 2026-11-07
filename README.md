@@ -6,8 +6,8 @@ HTTP API for user authentication and API-key management, plus a separate
 administrator API for configuring providers.
 
 > **Project status:** NextGate is under active development. The current code
-> implements authentication, API-key management, and provider configuration.
-> Model-proxy or completion routes are not implemented yet.
+> implements authentication, API-key management, provider configuration, and
+> OpenAI-compatible chat completions.
 
 ## Features
 
@@ -16,6 +16,7 @@ administrator API for configuring providers.
 - User registration and login with bcrypt password hashing.
 - Short-lived HS256 JWT access tokens and rotating refresh tokens.
 - API keys issued to users and stored only as SHA-256 hashes.
+- OpenAI-compatible chat completions proxied through issued API keys.
 - Administrator-managed AI providers with built-in defaults for Groq.
 - Provider API keys encrypted at rest with AES-256-GCM.
 - OS-keyring-backed encryption and administrator password storage.
@@ -115,6 +116,7 @@ All request and response bodies use JSON. Authenticated endpoints expect an
 | `POST` | `/api/v1/apikeys` | User JWT | Create an API key |
 | `GET` | `/api/v1/apikeys` | User JWT | List the user's API keys |
 | `DELETE` | `/api/v1/apikeys/{id}` | User JWT | Delete one of the user's API keys |
+| `POST` | `/api/v1/chat/completions` | API key | Proxy an OpenAI-compatible chat completion |
 
 Passwords must not exceed 72 bytes. Access tokens expire after 60 minutes.
 Refresh tokens expire after 30 days and are rotated on every successful refresh.
@@ -230,7 +232,7 @@ plain `go build ./...` includes the latest assets.
 │   ├── admin/                              # Admin API, login, and providers
 │   ├── api/                                # Public API, auth, and API keys
 │   ├── config/                             # Environment and keyring configuration
-│   ├── middlewares/                        # JWT authentication middleware
+│   ├── middlewares/                        # JWT and API-key authentication middleware
 │   ├── models/                             # Request and response models
 │   ├── secret/                             # AES-256-GCM encryption
 │   └── store/                              # SQLite connection and schema
